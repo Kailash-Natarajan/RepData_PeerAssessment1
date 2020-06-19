@@ -1,25 +1,88 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "My R makrdown Project"
+author: "Kailash Natarajan"
+date: "19/06/2020"
+output: html_document
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Loading the data
+```{r}
+datafile<-read.csv("activity.csv")
+```
+What is mean total number of steps taken per day?
+```{r}
+##Ignoring missing values and putting into a new variable
+temp<-datafile
+temp[is.na(datafile[,1]),1]<-0
+library(ggplot2)
+step_sum<-tapply(temp$steps,temp$date,sum)
+##1. The total number of steps taken per day
+print("Steps taken per day")
+print(step_sum)
+##2. Histogram of number of steps
+hist(step_sum)
+##3. Finding mean and median values
+##Finding mean and median of steps taken per day
+#This will return only the values
+values<-as.numeric(step_sum)
+print("Mean is:")
+print(mean(values))
+print("Median is:")
+print(median(values))
+```
+What is the average daily activity pattern?
+```{r}
+##Ignoring removing NA and making it 0
+interval_mean<-tapply(temp$steps,temp$interval,mean)
+plot(interval_mean~names(interval_mean),type="l",xlab="Interval",ylab="Average number of steps")
+print("Maximum number of average steps in interval:")
+print(interval_mean)
+mx<-max(interval_mean)
+index<-which(mx==interval_mean)
+print(names(interval_mean)[index[[1]]])
+```
+Imputing missing values
+```{r}
+#Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NA's)
+nas<-sum(is.na(datafile$steps)|is.na(datafile$interval))
+print("Number of rows with NA:")
+print(nas)
+#Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+##Finding mean of values in the same interval and using it to
+##impute the NA's
+new_datafile<-datafile
+int_mean<-tapply(temp$steps,temp$interval,mean)
+for(i in unique(datafile$interval)){
+  new_datafile[is.na(new_datafile$steps)&(new_datafile$interval==i),"steps"]<-as.numeric(int_mean[names(int_mean)==i])
+}
+##Histogram, mean and median of new datafile
+step_sum<-tapply(new_datafile$steps,new_datafile$date,sum)
+hist(step_sum)
+print("Mean:")
+values<-as.numeric(step_sum)
+print(mean(values))
+print("Median:")
+print(median(values))
 
+```
+From the above we can see that mean has changed slightly and median has not. This implies that by using even a simple model for imputing like just converting NA's to respective means, we can solve the issue of missing values without impacting the calculations and analysis too much.
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+Are there differences in activity patterns between weekdays and weekends?
+```{r}
+library(dplyr)
+##Converting date field to date class
+new_datafile$date<-as.Date(as.character(new_datafile$date),"%Y-%m-%d")
+new_datafile<-mutate(new_datafile,week=weekdays(date))
+new_datafile$week<-sapply(new_datafile$week,                          function(x){if(x=="Saturday"|x=="Sunday"){y<-"Weekend"}
+  else{y<-"Weekday"}
+  y
+  })
+activity_by_date <- aggregate(steps~interval + week, new_datafile, mean, na.rm = TRUE)
+plot<- ggplot(activity_by_date, aes(x = interval , y = steps, color = week)) +
+       geom_line() +
+       labs(title = "Average daily steps by type of date", x = "Interval", y = "Average number of steps") +
+       facet_wrap(~week, ncol = 1, nrow=2)
+print(plot)
+```
